@@ -1,14 +1,32 @@
 import "@/styles/globals.css";
-
 import { Raleway } from "next/font/google";
 import { Toaster } from "sonner";
+import type { Metadata, Viewport } from "next";
 
 const ralway = Raleway({ subsets: ["latin"], variable: "--font-ralway" });
 
-export const metadata = {
-  title: "Sprache",
-  description: "Learning German with AI",
+export const metadata: Metadata = {
+  title: "Sprache AI — Learn German",
+  description:
+    "An AI-powered German learning chat tutor. Practice conversations, learn vocabulary, and master German with spaced repetition.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Sprache",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#dc2626",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -18,8 +36,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${ralway.variable}`}>
-      <body>{children}</body>
-      <Toaster />
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
+      <body className="overscroll-none">
+        {children}
+        <Toaster position="top-center" />
+      </body>
     </html>
   );
 }

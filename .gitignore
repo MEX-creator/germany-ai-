@@ -39,5 +39,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# freebuff
+.freebuff/
+
+# package-lock (project uses bun/pnpm)
+package-lock.json
+
 # typescript
 *.tsbuildinfo

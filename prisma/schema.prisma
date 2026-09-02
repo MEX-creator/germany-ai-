@@ -23,21 +23,39 @@ model Message {
   role           String
   createdAt      DateTime     @default(now())
   conversationId Int
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
 }
 
 model VocabularyItem {
-  id         Int      @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   german     String
   english    String
-  type       String
   example    String?
-  difficulty String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  sourceConversationId Int?
+  // SM-2 algorithm fields
+  easeFactor  Float   @default(2.5)
+  interval    Int     @default(0)
+  repetitions Int     @default(0)
+  nextReviewAt DateTime @default(now())
+  lastReviewedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reviewLogs  ReviewLog[]
 
-  @@index([difficulty])
-  @@index([type])
+  @@index([nextReviewAt])
+  @@index([german])
+}
+
+model ReviewLog {
+  id              Int             @id @default(autoincrement())
+  vocabularyItemId Int
+  vocabularyItem  VocabularyItem  @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+  rating          Int
+  easeFactor      Float
+  interval        Int
+  reviewedAt      DateTime        @default(now())
+
+  @@index([vocabularyItemId])
 }

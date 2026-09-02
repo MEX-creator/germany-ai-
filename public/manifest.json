@@ -1,0 +1,16 @@
+{
+  "name": "Sprache AI",
+  "short_name": "Sprache",
+  "description": "AI-powered German learning chat tutor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#dc2626",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
