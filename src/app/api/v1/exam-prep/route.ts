@@ -21,21 +21,24 @@ Erstelle Pruefungsfragen auf ${level}-Niveau.
 Level-Beschreibung: ${LEVEL_DESCRIPTIONS[level]}
 
 Antworte NUR mit einem gueltigen JSON-Objekt, ohne Markdown-Code-Block.
-Erstelle 3 Fragen pro Anfrage.
+Erstelle maximal 2 Fragen pro Anfrage ( fuer listening/reading ) oder 3 Fragen ( fuer grammar/writing ). Halte das JSON kurz.
+Das JSON darf KEINE Zeilenumbrueche innerhalb der JSON-Struktur haben. Alles in einer Zeile.
 
 Fuer reading:
-{"type":"reading","passage":"[deutscher Text passend fuer ${level}]","questions":[{"q":"[Frage]","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"[Erklaerung]"}]}
+{"type":"reading","passage":"[deutscher Text]","questions":[{"q":"[Frage]","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"[Erklaerung]"}]}
 
 Fuer listening:
-{"type":"listening","transcript":"[Dialog auf Deutsch passend fuer ${level}]","questions":[{"q":"[Frage]","options":["A) ...","B) ...","C) ..."],"correct":0,"explanation":"[Erklaerung]"}]}
+{"type":"listening","transcript":"[Dialog auf Deutsch]","questions":[{"q":"[Frage]","options":["A) ...","B) ...","C) ..."],"correct":0,"explanation":"[Erklaerung]"}]}
 
 Fuer writing:
-{"type":"writing","prompt":"[Schreibaufgabe passend fuer ${level}]","requirements":["[Anforderung]"],"sampleAnswer":"[Beispielantwort]","tips":["[Tipp]"]}
+{"type":"writing","prompt":"[Schreibaufgabe]","requirements":["[Anforderung]"],"sampleAnswer":"[Beispielantwort]","tips":["[Tipp]"]}
 
 Fuer grammar:
-{"type":"grammar","questions":[{"q":"[Lueckentext oder Grammatikfrage passend fuer ${level}]","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"[Grammatikerklaerung]"}]}
+{"type":"grammar","questions":[{"q":"[Lueckentext oder Grammatikfrage]","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"[Grammatikerklaerung]"}]}`;
+}
 
-WICHTIG: Die Fragen muessen zum Niveau ${level} passen. Bei A1 sehr einfach, bei B2 anspruchsvoll.`;
+function stripNewlines(s: string): string {
+  return s.replace(/[\r\n]+/g, " ");
 }
 
 export async function POST(req: NextRequest) {
@@ -59,34 +62,46 @@ export async function POST(req: NextRequest) {
         { role: "user", content: `Erstelle ${level}-Uebungsfragen fuer die Kategorie: ${category}` },
       ],
       temperature: 0.7,
-      max_tokens: 2048,
+      max_tokens: 8192,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "";
-    // Strip markdown code fences if present
+    // Strip markdown code fences
     let jsonStr = raw;
     if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
     if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
     if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
-    jsonStr = jsonStr.trim();
-
-    // Strip newlines inside JSON strings (AI sometimes adds them)
-    jsonStr = jsonStr.replace(/\n/g, " ");
+    jsonStr = stripNewlines(jsonStr.trim());
 
     let questions;
     try {
       questions = JSON.parse(jsonStr);
     } catch {
-      // Try to extract JSON object from the response
-      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          questions = JSON.parse(jsonMatch[0].replace(/\n/g, " "));
-        } catch {
+      // Fallback: try to fix truncated JSON by closing open brackets
+      let attempt = jsonStr;
+      // Count open/close brackets and add missing ones
+      const openBrackets = (attempt.match(/\{/g) || []).length;
+      const closeBrackets = (attempt.match(/\}/g) || []).length;
+      const openBracketsArr = (attempt.match(/\[/g) || []).length;
+      const closeBracketsArr = (attempt.match(/\]/g) || []).length;
+      attempt += "]".repeat(Math.max(0, openBracketsArr - closeBracketsArr));
+      attempt += "}".repeat(Math.max(0, openBrackets - closeBrackets));
+      // Remove trailing incomplete string
+      attempt = attempt.replace(/,\s*"[^"]*$/, "");
+      try {
+        questions = JSON.parse(attempt);
+      } catch {
+        // Last resort: extract what we can
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            questions = JSON.parse(stripNewlines(jsonMatch[0]));
+          } catch {
+            return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
+          }
+        } else {
           return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
         }
-      } else {
-        return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
       }
     }
 
