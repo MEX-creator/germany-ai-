@@ -255,6 +255,7 @@ const HomePage: React.FC = () => {
                 📚 Review
               </Link>
             </div>
+            <ProgressBar />
             <button
               onClick={handleNewChat}
               disabled={loading}
@@ -296,7 +297,10 @@ const HomePage: React.FC = () => {
                   >
                     <div className="truncate">{chat.title}</div>
                     <div className="text-xs text-zinc-500">
+                      <span className="text-xs text-zinc-500">
                       {new Date(chat.createdAt).toLocaleDateString()}
+                      </span>
+                      {flashcardCount[chat.id] ? <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">{flashcardCount[chat.id]} cards</span> : null}
                     </div>
                   </button>
                   <button
@@ -340,13 +344,15 @@ const HomePage: React.FC = () => {
             <span className="text-zinc-900">AI</span>
           </h1>
           <div className="hidden md:block" />
-          <Link
-            href="/review"
-            className="flex items-center space-x-1 rounded-lg px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
-          >
-            <span>📚</span>
-            <span>Review</span>
-          </Link>
+          <div className="flex items-center space-x-2">
+            <ProgressBar />
+            <Link href="/exam-prep" className="flex items-center space-x-1 rounded-lg px-3 py-1.5 text-sm text-orange-600 transition-colors hover:bg-orange-50">
+              B2 Prep
+            </Link>
+            <Link href="/review" className="flex items-center space-x-1 rounded-lg px-3 py-1.5 text-sm text-amber-600 transition-colors hover:bg-amber-50">
+              Review
+            </Link>
+          </div>
         </header>
 
         {/* Messages */}
