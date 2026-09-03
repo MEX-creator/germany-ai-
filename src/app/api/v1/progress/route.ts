@@ -1,8 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { db } from "@/server/db";
 import { verifyPasscode } from "@/lib/passcode";
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 export async function GET(req: NextRequest) {
   const passcode = req.headers.get("x-passcode") ?? "";
@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
 
     const totalVocab = allItems.length;
     const masteredVocab = allItems.filter(
-      (i) => i.repetitions >= 3 && i.interval >= 7
+      (i: any) => i.repetitions >= 3 && i.interval >= 7
     ).length;
-    const reviewedVocab = allItems.filter((i) => i.repetitions > 0).length;
+    const reviewedVocab = allItems.filter((i: any) => i.repetitions > 0).length;
 
     const thresholds = [
       { label: "A1", min: 0, max: 50 },
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     const examAttempts = await prisma.examAttempt.findMany({
       select: { correct: true, category: true },
     });
-    const examCorrect = examAttempts.filter((a) => a.correct === true).length;
+    const examCorrect = examAttempts.filter((a: any) => a.correct === true).length;
     const examTotal = examAttempts.length;
 
     return NextResponse.json({

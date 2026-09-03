@@ -1,8 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { db } from "@/server/db";
 import { verifyPasscode } from "@/lib/passcode";
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 /**
  * GET /api/v1/session-flashcards?conversationId=123

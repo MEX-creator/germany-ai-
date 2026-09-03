@@ -1,9 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { db } from "@/server/db";
 import { createNvidiaClient, CHAT_MODEL } from "@/server/ai";
 import { verifyPasscode } from "@/lib/passcode";
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 const EXAM_SYSTEM_PROMPT = `Du bist ein Experte fuer die Goethe-Zertifikat B2 Pruefung.
 Erstelle Pruefungsfragen auf B2-Niveau.

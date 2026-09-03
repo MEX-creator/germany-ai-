@@ -1,10 +1,10 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { db } from "@/server/db";
 import { createNvidiaClient, CHAT_MODEL } from "@/server/ai";
 import { SYSTEM_PROMPT } from "@/lib/persona";
 import { verifyPasscode } from "@/lib/passcode";
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 /**
  * Parse vocabulary extraction markers from AI responses.
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     const { cleanText, vocab } = parseVocabMarkers(rawMessage);
 
     // Save conversation to database
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       let conversation;
 
       if (!conversationId) {

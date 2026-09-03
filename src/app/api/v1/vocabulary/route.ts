@@ -1,9 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { db } from "@/server/db";
 import { reviewCard, isDue } from "@/lib/sm2";
 import { verifyPasscode } from "@/lib/passcode";
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 /**
  * GET /api/v1/vocabulary — List vocabulary items.
