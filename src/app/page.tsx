@@ -227,36 +227,45 @@ const HomePage: React.FC = () => {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
-
-            if (event.type === "header" && event.conversation) {
-              // New conversation created on server
-              const newConv: Conversation = {
-                id: event.conversationId,
-                title: event.conversation.title,
-                createdAt: event.conversation.createdAt,
-              };
-              setConversations((prev) => [newConv, ...prev]);
-              setSelectedChat(event.conversationId);
-            } else if (event.type === "token") {
-              streamContent += event.content;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: streamContent } : m
-                )
-              );
-            } else if (event.type === "done") {
-              // Final clean text (with vocab markers stripped)
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: event.message } : m
-                )
-              );
-            } else if (event.type === "error") {
-              throw new Error(event.error);
-            }
+            handleStreamEvent(event);
           } catch (parseErr) {
             // Skip malformed lines
           }
+        }
+      }
+      function handleStreamEvent(event: any) {
+        if (event.type === "header" && event.conversation) {
+          const newConv: Conversation = {
+            id: event.conversationId,
+            title: event.conversation.title,
+            createdAt: event.conversation.createdAt,
+          };
+          setConversations((prev) => [newConv, ...prev]);
+          setSelectedChat(event.conversationId);
+        } else if (event.type === "token") {
+          streamContent += event.content;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: streamContent } : m
+            )
+          );
+        } else if (event.type === "done") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: event.message } : m
+            )
+          );
+        } else if (event.type === "error") {
+          throw new Error(event.error);
+        }
+      }
+      // Process any remaining buffer content
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer);
+          handleStreamEvent(event);
+        } catch (parseErr) {
+          // Skip malformed remaining content
         }
       }
     } catch (error) {

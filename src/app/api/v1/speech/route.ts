@@ -32,8 +32,21 @@ function parseVocabMarkers(text: string): {
 
   // Pass 2: Strip any remaining malformed/partial VOCAB markers
   cleanText = cleanText.replace(/<!--VOCAB:[\s\S]*?-->/g, "");
-  // Also catch open markers without closing -->
   cleanText = cleanText.replace(/<!--VOCAB:[\s\S]*$/gm, "");
+
+  // Pass 3: Fallback — extract vocab from common patterns if no markers found
+  if (vocab.length === 0) {
+    // Pattern: **"GermanWord"** — English translation
+    const boldPattern = /\*\*\\?"?([A-ZÄÖÜa-zäöüß]+)\\?"?\*\*\s*[—\-–:]\s*(.+)/g;
+    let match;
+    while ((match = boldPattern.exec(cleanText)) !== null && vocab.length < 2) {
+      const german = match[1]?.trim() ?? "";
+      const english = (match[2] ?? "").replace(/["\"]+/g, "").trim().split(".")[0] ?? "";
+      if (german.length >= 2 && german.length <= 30 && (/[äöüÄÖÜ]/.test(german) || /^[A-Z]/.test(german))) {
+        vocab.push({ german, english, example: undefined });
+      }
+    }
+  }
 
   return { cleanText: cleanText.trim(), vocab };
 }
