@@ -66,53 +66,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
     }
 
-    // === PHASE 1: All DB writes in one transaction (fast, single connection) ===
+    // === PHASE 1: Minimal DB operations (sequential, no transaction) ===
     let convId = parseInt(String(conversationId)) || 0;
     let newConversation: any = null;
     let historyMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: SYSTEM_PROMPT },
     ];
 
-    const setupResult = await prisma.$transaction(async (tx: any) => {
-      // Get existing messages for context
-      if (conversationId) {
-        const existingMessages = await tx.message.findMany({
-          where: { conversationId: parseInt(String(conversationId)) },
-          orderBy: { createdAt: "asc" },
-          take: 10,
-        });
-        for (const msg of existingMessages) {
-          historyMessages.push({
-            role: msg.role as "user" | "assistant",
-            content: msg.content,
-          });
-        }
-      }
-
-      historyMessages.push({ role: "user", content: prompt });
-
-      // Create conversation if new
-      let conversation = null;
-      if (!conversationId) {
-        const count = await tx.conversation.count();
-        conversation = await tx.conversation.create({
-          data: { title: `Lektion${count + 1}` },
-        });
-        convId = conversation.id;
-      } else {
-        convId = parseInt(String(conversationId));
-      }
-
-      // Save user message
-      await tx.message.create({
-        data: { content: prompt, role: "user", conversationId: convId },
+    // Get existing messages for context
+    if (conversationId) {
+      const existingMessages = await prisma.message.findMany({
+        where: { conversationId: parseInt(String(conversationId)) },
+        orderBy: { createdAt: "asc" },
+        take: 10,
       });
+      for (const msg of existingMessages) {
+        historyMessages.push({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        });
+      }
+    }
 
-      return { convId, conversation };
+    historyMessages.push({ role: "user", content: prompt });
+
+    // Create conversation if new
+    if (!conversationId) {
+      const count = await prisma.conversation.count();
+      newConversation = await prisma.conversation.create({
+        data: { title: `Lektion${count + 1}` },
+      });
+      convId = newConversation.id;
+    } else {
+      convId = parseInt(String(conversationId));
+    }
+
+    // Save user message
+    await prisma.message.create({
+      data: { content: prompt, role: "user", conversationId: convId },
     });
-
-    newConversation = setupResult.conversation;
-    convId = setupResult.convId;
 
     // === PHASE 2: Stream AI response (no DB connections held) ===
     const client = createNvidiaClient();
@@ -149,29 +141,27 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // === PHASE 3: Save results in one transaction ===
+          // === PHASE 3: Save results (no transaction — minimize connection hold time) ===
           const { cleanText, vocab } = parseVocabMarkers(fullContent);
 
-          await prisma.$transaction(async (tx: any) => {
-            await tx.message.create({
-              data: { content: cleanText, role: "assistant", conversationId: convId },
-            });
-            for (const v of vocab) {
-              const existing = await tx.vocabularyItem.findFirst({
-                where: { german: v.german },
-              });
-              if (!existing) {
-                await tx.vocabularyItem.create({
-                  data: {
-                    german: v.german,
-                    english: v.english,
-                    example: v.example ?? null,
-                    sourceConversationId: convId,
-                  },
-                });
-              }
-            }
+          await prisma.message.create({
+            data: { content: cleanText, role: "assistant", conversationId: convId },
           });
+          for (const v of vocab) {
+            const existing = await prisma.vocabularyItem.findFirst({
+              where: { german: v.german },
+            });
+            if (!existing) {
+              await prisma.vocabularyItem.create({
+                data: {
+                  german: v.german,
+                  english: v.english,
+                  example: v.example ?? null,
+                  sourceConversationId: convId,
+                },
+              });
+            }
+          }
 
           // Send done signal
           controller.enqueue(encoder.encode(JSON.stringify({
