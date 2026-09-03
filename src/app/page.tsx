@@ -66,6 +66,8 @@ const HomePage: React.FC = () => {
       }
       const { conversations } = await response.json();
       setConversations(conversations);
+      // Fetch flashcard counts for each conversation
+      conversations.forEach((conv: { id: number }) => fetchSessionFlashcards(conv.id));
       if (conversations.length > 0 && !selectedChat) {
         setSelectedChat(conversations[0].id);
       }
@@ -296,10 +298,8 @@ const HomePage: React.FC = () => {
                     )}
                   >
                     <div className="truncate">{chat.title}</div>
-                    <div className="text-xs text-zinc-500">
-                      <span className="text-xs text-zinc-500">
-                      {new Date(chat.createdAt).toLocaleDateString()}
-                      </span>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <span>{new Date(chat.createdAt).toLocaleDateString()}</span>
                       {flashcardCount[chat.id] ? <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">{flashcardCount[chat.id]} cards</span> : null}
                     </div>
                   </button>
