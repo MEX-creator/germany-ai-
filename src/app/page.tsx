@@ -8,6 +8,8 @@ import { PasscodeGate } from "@/components/passcode-gate";
 import { AudioPlayer } from "@/components/audio-player";
 import { MobileNav, SidebarOverlay } from "@/components/mobile-nav";
 import { ProgressBar } from "@/components/progress-bar";
+import { BlurText } from "@/components/blur-text";
+import { AnimatedBG } from "@/components/animated-bg";
 import { isPasscodeStored, getPasscodeHeaders, clearPasscode } from "@/lib/passcode";
 import Link from "next/link";
 
@@ -314,7 +316,7 @@ const HomePage: React.FC = () => {
       <SidebarOverlay open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
         <div className="flex h-full flex-col">
           {/* Sidebar header */}
-          <div className="border-b border-zinc-100 p-4">
+          <div className="border-b border-orange-100/40 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h1 className="text-lg font-semibold">
                 <span className="text-orange-600">Sprache</span>{" "}
@@ -362,9 +364,9 @@ const HomePage: React.FC = () => {
                       setSidebarOpen(false);
                     }}
                     className={cn(
-                      "w-full rounded-lg px-4 py-2.5 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100",
+                      "w-full rounded-xl px-4 py-3 text-left text-sm text-zinc-700 transition-all hover:bg-orange-50/60",
                       selectedChat === chat.id &&
-                        "bg-orange-50 text-orange-700 hover:bg-orange-50",
+                        "bg-orange-50 text-orange-700 shadow-apple-sm border border-orange-100/50",
                     )}
                   >
                     <div className="truncate">{chat.title}</div>
@@ -408,7 +410,7 @@ const HomePage: React.FC = () => {
       {/* Main Chat Area */}
       <div className="flex flex-1 flex-col bg-white">
         {/* Header */}
-        <header className="flex h-14 items-center justify-between border-b border-zinc-200 pl-16 pr-4 md:pl-6">
+        <header className="glass sticky top-0 z-20 flex h-14 items-center justify-between border-b border-orange-100/50 pl-16 pr-4 md:pl-6">
           <h1 className="text-lg font-semibold md:hidden">
             <span className="text-orange-600">Sprache</span>{" "}
             <span className="text-zinc-900">AI</span>
@@ -426,20 +428,40 @@ const HomePage: React.FC = () => {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto bg-zinc-50 p-4">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-orange-50/30 to-white p-4">
           {initialLoading ? (
             <div className="flex h-full items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
             </div>
           ) : !currentConversation ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <p className="text-6xl">🇩🇪</p>
-              <p className="mt-4 text-lg font-medium text-zinc-900">
-                Willkommen bei Sprache AI!
-              </p>
-              <p className="mt-2 max-w-sm text-sm text-zinc-500">
-                Start a new conversation to begin learning German with your AI tutor.
-              </p>
+            <div className="relative flex h-full flex-col items-center justify-center text-center">
+              <AnimatedBG />
+              <div className="relative z-10">
+                <div className="mb-6 text-6xl" style={{ animation: "float-1 6s ease-in-out infinite" }}>🇩🇪</div>
+                <BlurText
+                  text="Willkommen bei Sprache AI"
+                  className="text-3xl font-bold tracking-tight text-zinc-900 md:text-4xl"
+                  delay={200}
+                />
+                <p className="mt-4 max-w-md text-base leading-relaxed text-zinc-500" style={{ animationDelay: "0.6s" }}>
+                  Your personal German tutor. Start chatting to learn vocabulary,
+                  practice conversations, and work toward B2 fluency.
+                </p>
+                <div className="mt-8 flex items-center justify-center gap-3">
+                  <Link
+                    href="/exam-prep"
+                    className="rounded-full border border-orange-200 bg-white px-5 py-2.5 text-sm font-medium text-orange-700 shadow-apple-sm transition-all hover:shadow-apple-md hover:border-orange-300"
+                  >
+                    B2 Prep
+                  </Link>
+                  <Link
+                    href="/review"
+                    className="rounded-full bg-orange-600 px-5 py-2.5 text-sm font-medium text-white shadow-apple-sm transition-all hover:bg-orange-700 hover:shadow-apple-md"
+                  >
+                    Start Review
+                  </Link>
+                </div>
+              </div>
             </div>
           ) : messagesLoading ? (
             <div className="flex h-full items-center justify-center">
@@ -456,10 +478,10 @@ const HomePage: React.FC = () => {
                 >
                   <div
                     className={cn(
-                      "max-w-[85%] rounded-2xl p-4 shadow-sm md:max-w-[80%]",
+                      "max-w-[85%] p-4 md:max-w-[80%]",
                       message.role === "user"
-                        ? "bg-orange-600 text-white"
-                        : "border border-amber-100 bg-white text-zinc-900",
+                        ? "rounded-2xl rounded-br-md bg-orange-600 text-white shadow-apple-sm"
+                        : "rounded-2xl rounded-bl-md border border-orange-100/60 bg-white text-zinc-800 shadow-apple-md",
                     )}
                   >
                     <ReactMarkdown
@@ -484,11 +506,11 @@ const HomePage: React.FC = () => {
               {/* Loading indicator */}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex space-x-1.5">
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "0ms" }} />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "150ms" }} />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "300ms" }} />
+                  <div className="rounded-2xl rounded-bl-md border border-orange-100/60 bg-white px-5 py-3.5 shadow-apple-sm">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" style={{ animationDelay: "0ms" }} />
+                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" style={{ animationDelay: "200ms" }} />
+                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" style={{ animationDelay: "400ms" }} />
                     </div>
                   </div>
                 </div>
@@ -498,7 +520,7 @@ const HomePage: React.FC = () => {
         </div>
 
         {/* Chat Input */}
-        <div className="border-t border-zinc-200 bg-white p-3 safe-bottom md:p-4">
+        <div className="border-t border-orange-100/50 bg-white/80 p-3 safe-bottom backdrop-blur-sm md:p-4">
           <div className="flex space-x-2">
             <Textarea
               onKeyDownCapture={(e) => {
@@ -525,7 +547,7 @@ const HomePage: React.FC = () => {
               disabled={
                 loading || initialLoading || !selectedChat || !request.trim()
               }
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-apple-sm transition-all hover:bg-orange-700 hover:shadow-apple-md active:scale-95 disabled:opacity-50"
             >
               {loading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

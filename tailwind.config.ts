@@ -19,7 +19,7 @@ const config = {
     },
     extend: {
       fontFamily: {
-        primary: ["var(--font-ralway)"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,6 +60,12 @@ const config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        "apple-sm": "0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03)",
+        "apple-md": "0 2px 8px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+        "apple-lg": "0 4px 12px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04)",
+        "apple-xl": "0 8px 24px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.05)",
       },
       keyframes: {
         "accordion-down": {

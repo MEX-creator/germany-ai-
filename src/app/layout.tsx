@@ -1,14 +1,18 @@
 import "@/styles/globals.css";
-import { Raleway } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import type { Metadata, Viewport } from "next";
 
-const ralway = Raleway({ subsets: ["latin"], variable: "--font-ralway" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Sprache AI — Learn German",
   description:
-    "An AI-powered German learning chat tutor. Practice conversations, learn vocabulary, and master German with spaced repetition.",
+    "An AI-powered German learning tutor. Practice conversations, learn vocabulary, and master German with spaced repetition.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
   appleWebApp: {
     capable: true,
@@ -25,7 +29,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#dc2626",
+  themeColor: "#ea580c",
   viewportFit: "cover",
 };
 
@@ -35,15 +39,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${ralway.variable}`}>
+    <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="overscroll-none">
+      <body className="overscroll-none font-sans antialiased">
         {children}
-        <Toaster position="top-center" />
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              borderRadius: "16px",
+              padding: "12px 16px",
+              fontSize: "14px",
+            },
+          }}
+        />
       </body>
     </html>
   );
