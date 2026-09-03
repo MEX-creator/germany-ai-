@@ -220,8 +220,35 @@ const HomePage: React.FC = () => {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        // Split on newlines AND on }{ boundary (multiple JSON objects in one chunk)
+        const rawLines = buffer.split("\n");
+        buffer = rawLines.pop() || "";
+        const lines: string[] = [];
+        for (const rl of rawLines) {
+          // Handle concatenated JSON: split }{ into separate objects
+          const parts = rl.split(/\}\s*\{/);
+          if (parts.length === 1) {
+            lines.push(rl);
+          } else {
+            parts.forEach((p, i) => {
+              if (i === 0) lines.push(p + "}");
+              else if (i === parts.length - 1) lines.push("{" + p);
+              else lines.push("{" + p + "}");
+            });
+          }
+        }
+        // Also handle leftover buffer with concatenated JSON
+        if (buffer.includes("}{")) {
+          const parts = buffer.split(/\}\s*\{/);
+          buffer = "";
+          parts.forEach((p, i) => {
+            const line = i === 0 ? p + "}" : i === parts.length - 1 ? "{" + p : "{" + p + "}";
+            try {
+              const event = JSON.parse(line);
+              handleStreamEvent(event);
+            } catch {}
+          });
+        }
 
         for (const line of lines) {
           if (!line.trim()) continue;
