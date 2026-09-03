@@ -18,7 +18,7 @@ const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
  * Llama 3.1 8B is a solid, fast instruction-following model that handles
  * multilingual content well. Swap this string if you want a different model.
  */
-export const CHAT_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
+export const CHAT_MODEL = "meta/llama-3.2-11b-vision-instruct";
 
 /**
  * Create an OpenAI SDK client pointed at NVIDIA NIM.
