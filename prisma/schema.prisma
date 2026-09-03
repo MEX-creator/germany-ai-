@@ -59,3 +59,16 @@ model ReviewLog {
 
   @@index([vocabularyItemId])
 }
+
+model ExamAttempt {
+  id          Int      @id @default(autoincrement())
+  category    String   // reading, listening, writing, grammar
+  question    String
+  userAnswer  String?
+  correct     Boolean?
+  score       Float?
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([createdAt])
+}

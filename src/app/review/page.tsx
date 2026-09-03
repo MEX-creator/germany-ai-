@@ -80,8 +80,8 @@ export default function ReviewPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-red-600" />
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50" style={{ backgroundColor: "hsl(30, 20%, 98%)" }}>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
       </div>
     );
   }
@@ -90,9 +90,9 @@ export default function ReviewPage() {
   const isDone = currentIndex >= dueItems.length;
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-zinc-50" style={{ backgroundColor: "hsl(30, 20%, 98%)" }}>
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-orange-100 bg-white px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <Link
             href="/"
@@ -104,7 +104,7 @@ export default function ReviewPage() {
             <span>Back to Chat</span>
           </Link>
           <h1 className="text-lg font-semibold">
-            <span className="text-red-600">Review</span>
+            <span className="text-orange-600">Review</span>
           </h1>
         </div>
       </header>
@@ -112,7 +112,7 @@ export default function ReviewPage() {
       <div className="mx-auto max-w-lg px-4 py-8">
         {dueItems.length === 0 ? (
           <div className="space-y-6 text-center">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-orange-100 bg-white p-8 shadow-sm">
               <p className="text-4xl">🎉</p>
               <p className="mt-4 text-lg font-medium text-zinc-900">
                 All caught up!
@@ -129,7 +129,7 @@ export default function ReviewPage() {
           </div>
         ) : isDone ? (
           <div className="space-y-6 text-center">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-orange-100 bg-white p-8 shadow-sm">
               <p className="text-4xl">💪</p>
               <p className="mt-4 text-lg font-medium text-zinc-900">
                 Session complete!
@@ -139,7 +139,7 @@ export default function ReviewPage() {
               </p>
               <Link
                 href="/"
-                className="mt-6 inline-block rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                className="mt-6 inline-block rounded-lg bg-orange-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-orange-700"
               >
                 Back to Chat
               </Link>
@@ -153,7 +153,7 @@ export default function ReviewPage() {
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
               <div
-                className="h-full rounded-full bg-red-500 transition-all duration-300"
+                className="h-full rounded-full bg-orange-500 transition-all duration-300"
                 style={{
                   width: `${((currentIndex) / dueItems.length) * 100}%`,
                 }}

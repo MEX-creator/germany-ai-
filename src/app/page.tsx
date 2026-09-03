@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { PasscodeGate } from "@/components/passcode-gate";
 import { AudioPlayer } from "@/components/audio-player";
 import { MobileNav, SidebarOverlay } from "@/components/mobile-nav";
+import { ProgressBar } from "@/components/progress-bar";
 import { isPasscodeStored, getPasscodeHeaders, clearPasscode } from "@/lib/passcode";
 import Link from "next/link";
 
@@ -33,6 +34,7 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [flashcardCount, setFlashcardCount] = useState<Record<number, number>>({});
 
   // Check for stored passcode on mount (client-only to avoid hydration mismatch)
   useEffect(() => {
@@ -74,6 +76,18 @@ const HomePage: React.FC = () => {
       setInitialLoading(false);
     }
   }, [selectedChat]);
+
+  async function fetchSessionFlashcards(convId: number) {
+    try {
+      const res = await fetch("/api/v1/session-flashcards?conversationId=" + convId, {
+        headers: getPasscodeHeaders(),
+      });
+      if (res.ok) {
+        const { items } = await res.json();
+        setFlashcardCount((prev) => ({ ...prev, [convId]: items.length }));
+      }
+    } catch {}
+  }
 
   async function handleNewChat() {
     try {
@@ -208,7 +222,7 @@ const HomePage: React.FC = () => {
   if (!mounted) {
     return (
       <main className="flex h-dvh items-center justify-center bg-zinc-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-red-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
       </main>
     );
   }
@@ -231,7 +245,7 @@ const HomePage: React.FC = () => {
           <div className="border-b border-zinc-100 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h1 className="text-lg font-semibold">
-                <span className="text-red-600">Sprache</span>{" "}
+                <span className="text-orange-600">Sprache</span>{" "}
                 <span className="text-zinc-900">AI</span>
               </h1>
               <Link
@@ -248,7 +262,7 @@ const HomePage: React.FC = () => {
             >
               {loading ? (
                 <div className="flex items-center justify-center space-x-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-red-600" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
                   <span>Creating...</span>
                 </div>
               ) : (
@@ -261,7 +275,7 @@ const HomePage: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-2">
             {initialLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-red-600" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
               </div>
             ) : (
               conversations.map((chat) => (
@@ -277,7 +291,7 @@ const HomePage: React.FC = () => {
                     className={cn(
                       "w-full rounded-lg px-4 py-2.5 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100",
                       selectedChat === chat.id &&
-                        "bg-red-50 text-red-700 hover:bg-red-50",
+                        "bg-orange-50 text-orange-700 hover:bg-orange-50",
                     )}
                   >
                     <div className="truncate">{chat.title}</div>
@@ -293,7 +307,7 @@ const HomePage: React.FC = () => {
                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 opacity-0 transition-opacity hover:bg-red-100 group-hover:opacity-100"
                     aria-label="Delete conversation"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 text-red-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 text-orange-600">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
                   </button>
@@ -322,7 +336,7 @@ const HomePage: React.FC = () => {
         {/* Header */}
         <header className="flex h-14 items-center justify-between border-b border-zinc-200 pl-16 pr-4 md:pl-6">
           <h1 className="text-lg font-semibold md:hidden">
-            <span className="text-red-600">Sprache</span>{" "}
+            <span className="text-orange-600">Sprache</span>{" "}
             <span className="text-zinc-900">AI</span>
           </h1>
           <div className="hidden md:block" />
@@ -339,7 +353,7 @@ const HomePage: React.FC = () => {
         <div className="flex-1 overflow-y-auto bg-zinc-50 p-4">
           {initialLoading ? (
             <div className="flex h-full items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-red-600" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
             </div>
           ) : !currentConversation ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
@@ -365,8 +379,8 @@ const HomePage: React.FC = () => {
                     className={cn(
                       "max-w-[85%] rounded-2xl p-4 shadow-sm md:max-w-[80%]",
                       message.role === "user"
-                        ? "bg-red-600 text-white"
-                        : "border border-amber-100 bg-amber-50 text-zinc-900",
+                        ? "bg-orange-600 text-white"
+                        : "border border-amber-100 bg-white text-zinc-900",
                     )}
                   >
                     <ReactMarkdown
@@ -391,11 +405,11 @@ const HomePage: React.FC = () => {
               {/* Loading indicator */}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 shadow-sm">
+                  <div className="rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm">
                     <div className="flex space-x-1.5">
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-amber-400" style={{ animationDelay: "0ms" }} />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-amber-400" style={{ animationDelay: "150ms" }} />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-amber-400" style={{ animationDelay: "300ms" }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "0ms" }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "150ms" }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </div>
@@ -424,7 +438,7 @@ const HomePage: React.FC = () => {
                     : "Create a chat to start"
               }
               disabled={loading || initialLoading || !selectedChat}
-              className="min-h-[44px] w-full resize-none rounded-xl border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-500 transition-colors focus:border-red-500 focus:ring-red-500 disabled:opacity-50"
+              className="min-h-[44px] w-full resize-none rounded-xl border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-500 transition-colors focus:border-orange-500 focus:ring-orange-500 disabled:opacity-50"
               rows={1}
             />
             <button
@@ -432,7 +446,7 @@ const HomePage: React.FC = () => {
               disabled={
                 loading || initialLoading || !selectedChat || !request.trim()
               }
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
             >
               {loading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

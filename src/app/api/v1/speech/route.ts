@@ -14,21 +14,28 @@ function parseVocabMarkers(text: string): {
   cleanText: string;
   vocab: Array<{ german: string; english: string; example?: string }>;
 } {
-  const vocabRegex = /<!--VOCAB:\s*(\{.*?\})\s*-->/g;
   const vocab: Array<{ german: string; english: string; example?: string }> = [];
-  const cleanText = text.replace(vocabRegex, (_match, jsonStr: string) => {
+
+  // Pass 1: Extract well-formed markers (with s flag for multiline JSON)
+  const wellFormedRegex = /<!--VOCAB:\s*(\{[^}]*\})\s*-->/gs;
+  let cleanText = text.replace(wellFormedRegex, (_match, jsonStr: string) => {
     try {
       const parsed = JSON.parse(jsonStr);
       if (parsed.german && parsed.english) {
         vocab.push(parsed);
       }
     } catch {
-      // malformed JSON — leave marker in text as fallback
-      return _match;
+      // malformed JSON - strip anyway to prevent visible leak
     }
     return "";
-  }).trim();
-  return { cleanText, vocab };
+  });
+
+  // Pass 2: Strip any remaining malformed/partial VOCAB markers
+  cleanText = cleanText.replace(/<!--VOCAB:[\s\S]*?-->/g, "");
+  // Also catch open markers without closing -->
+  cleanText = cleanText.replace(/<!--VOCAB:[\s\S]*$/gm, "");
+
+  return { cleanText: cleanText.trim(), vocab };
 }
 
 /**

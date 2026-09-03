@@ -4,35 +4,41 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 30 20% 98%;
+    --foreground: 25 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 25 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 25 25% 12%;
 
-    --primary: 265 89% 78%;
+    --primary: 25 85% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary: 30 30% 95%;
+    --secondary-foreground: 25 20% 25%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted: 30 15% 95%;
+    --muted-foreground: 25 10% 45%;
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 35 90% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 265 89% 78%;
+    --border: 30 15% 90%;
+    --input: 30 15% 90%;
+    --ring: 25 85% 55%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Sprache custom tokens */
+    --sprache-warm: 25 85% 55%;
+    --sprache-amber: 35 90% 55%;
+    --sprache-cream: 30 20% 98%;
+    --sprache-sage: 150 20% 90%;
   }
 }
 
@@ -42,10 +48,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* Mobile safe-area padding for iPhone notch */
 @layer utilities {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -59,4 +65,27 @@
 html,
 body {
   overscroll-behavior: none;
+}
+
+/* Prose overrides for AI messages */
+.prose {
+  --tw-prose-body: theme("colors.zinc.800");
+  --tw-prose-headings: theme("colors.zinc.900");
+  --tw-prose-bold: theme("colors.zinc.900");
+  --tw-prose-links: theme("colors.orange.600");
+  --tw-prose-bullets: theme("colors.zinc.400");
+  --tw-prose-code: theme("colors.orange.700");
+  --tw-prose-pre-bg: theme("colors.zinc.100");
+}
+
+.prose :where(code):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+  background-color: theme("colors.orange.50");
+  padding: 0.15em 0.3em;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+/* Smooth transitions for sidebar */
+.sidebar-transition {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
