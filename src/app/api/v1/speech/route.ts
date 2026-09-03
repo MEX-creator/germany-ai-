@@ -180,9 +180,24 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // If conversationId is provided, return messages for that conversation
+    const conversationId = req.nextUrl.searchParams.get("conversationId");
+    if (conversationId) {
+      const messages = await prisma.message.findMany({
+        where: { conversationId: parseInt(conversationId) },
+        orderBy: { createdAt: "asc" },
+      });
+      return NextResponse.json({ messages }, { status: 200 });
+    }
+
+    // Otherwise, return all conversations (without messages for speed)
     const conversations = await prisma.conversation.findMany({
-      include: {
-        messages: { orderBy: { createdAt: "asc" } },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { messages: true } },
       },
       orderBy: { updatedAt: "desc" },
     });

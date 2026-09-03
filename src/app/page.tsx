@@ -22,7 +22,7 @@ type Conversation = {
   id: number;
   title: string;
   createdAt: string;
-  messages: Message[];
+  _count?: { messages: number };
 };
 
 const HomePage: React.FC = () => {
@@ -35,6 +35,8 @@ const HomePage: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState<Record<number, number>>({});
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
 
   // Check for stored passcode on mount (client-only to avoid hydration mismatch)
   useEffect(() => {
@@ -50,6 +52,15 @@ const HomePage: React.FC = () => {
       fetchConversations();
     }
   }, [authenticated]);
+
+  // Fetch messages when a conversation is selected
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat);
+    } else {
+      setMessages([]);
+    }
+  }, [selectedChat]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -91,6 +102,23 @@ const HomePage: React.FC = () => {
     } catch {}
   }
 
+  async function fetchMessages(convId: number) {
+    setMessagesLoading(true);
+    try {
+      const res = await fetch("/api/v1/speech?conversationId=" + convId, {
+        headers: getPasscodeHeaders(),
+      });
+      if (res.ok) {
+        const { messages: msgs } = await res.json();
+        setMessages(msgs);
+      }
+    } catch {
+      toast.error("Failed to load messages");
+    } finally {
+      setMessagesLoading(false);
+    }
+  }
+
   async function handleNewChat() {
     try {
       const response = await fetch("/api/v1/speech", {
@@ -112,25 +140,28 @@ const HomePage: React.FC = () => {
       const { message, conversation } = await response.json();
       if (conversation) {
         const newConversation: Conversation = {
-          ...conversation,
-          messages: [
-            {
-              id: Date.now(),
-              content: "Hello! I want to learn German.",
-              role: "user",
-              createdAt: new Date().toISOString(),
-            },
-            {
-              id: Date.now() + 1,
-              content: message,
-              role: "assistant",
-              createdAt: new Date().toISOString(),
-            },
-          ],
+          id: conversation.id,
+          title: conversation.title,
+          createdAt: conversation.createdAt,
         };
         setConversations((prev) => [newConversation, ...prev]);
         setSelectedChat(conversation.id);
-        setSidebarOpen(false); // Close mobile sidebar
+        // Set initial messages for the new conversation
+        setMessages([
+          {
+            id: Date.now(),
+            content: "Hello! I want to learn German.",
+            role: "user",
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: Date.now() + 1,
+            content: message,
+            role: "assistant",
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+        setSidebarOpen(false);
       }
     } catch (error) {
       console.error("Create chat error:", error);
@@ -145,7 +176,17 @@ const HomePage: React.FC = () => {
     const prompt = request.trim();
     if (!prompt || !selectedChat) return;
 
+    // Add user message immediately
+    const userMsg: Message = {
+      id: Date.now(),
+      role: "user",
+      content: prompt,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setRequest("");
     setLoading(true);
+
     try {
       const response = await fetch("/api/v1/speech", {
         method: "POST",
@@ -164,32 +205,13 @@ const HomePage: React.FC = () => {
       }
 
       const { message } = await response.json();
-      setConversations((prev) =>
-        prev.map((conv) => {
-          if (conv.id === selectedChat) {
-            const userMessage: Message = {
-              id: Date.now(),
-              role: "user",
-              content: prompt,
-              createdAt: new Date().toISOString(),
-            };
-
-            const assistantMessage: Message = {
-              id: Date.now() + 1,
-              role: "assistant",
-              content: message,
-              createdAt: new Date().toISOString(),
-            };
-
-            return {
-              ...conv,
-              messages: [...conv.messages, userMessage, assistantMessage],
-            };
-          }
-          return conv;
-        }),
-      );
-      setRequest("");
+      const assistantMsg: Message = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: message,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
     } catch (error) {
       console.error(error);
       toast.error("Failed to send message");
@@ -219,6 +241,7 @@ const HomePage: React.FC = () => {
   }
 
   const currentConversation = conversations.find((c) => c.id === selectedChat);
+  const flashcardCountVal = selectedChat ? flashcardCount[selectedChat] : undefined;
 
   // ── Don't render until mounted (avoids hydration mismatch) ──────────
   if (!mounted) {
@@ -300,7 +323,7 @@ const HomePage: React.FC = () => {
                     <div className="truncate">{chat.title}</div>
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                       <span>{new Date(chat.createdAt).toLocaleDateString()}</span>
-                      {flashcardCount[chat.id] ? <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">{flashcardCount[chat.id]} cards</span> : null}
+                      {chat.id in flashcardCount ? <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">{flashcardCount[chat.id]} cards</span> : null}
                     </div>
                   </button>
                   <button
@@ -371,9 +394,12 @@ const HomePage: React.FC = () => {
                 Start a new conversation to begin learning German with your AI tutor.
               </p>
             </div>
+          ) : messagesLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-600" />
+            </div>
           ) : (
-            <div className="space-y-4">
-              {currentConversation.messages.map((message, i) => (
+            <div className="space-y-4">               {messages.map((message, i) => (
                 <div
                   key={i}
                   className={cn(
