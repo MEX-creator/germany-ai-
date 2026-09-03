@@ -187,6 +187,10 @@ const HomePage: React.FC = () => {
     setRequest("");
     setLoading(true);
 
+    // Add placeholder for streaming AI response
+    const assistantId = Date.now() + 1;
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "", createdAt: new Date().toISOString() }]);
+
     try {
       const response = await fetch("/api/v1/speech", {
         method: "POST",
@@ -204,17 +208,60 @@ const HomePage: React.FC = () => {
         throw new Error("Failed to send message");
       }
 
-      const { message } = await response.json();
-      const assistantMsg: Message = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: message,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamContent = "";
+
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+
+            if (event.type === "header" && event.conversation) {
+              // New conversation created on server
+              const newConv: Conversation = {
+                id: event.conversationId,
+                title: event.conversation.title,
+                createdAt: event.conversation.createdAt,
+              };
+              setConversations((prev) => [newConv, ...prev]);
+              setSelectedChat(event.conversationId);
+            } else if (event.type === "token") {
+              streamContent += event.content;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: streamContent } : m
+                )
+              );
+            } else if (event.type === "done") {
+              // Final clean text (with vocab markers stripped)
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: event.message } : m
+                )
+              );
+            } else if (event.type === "error") {
+              throw new Error(event.error);
+            }
+          } catch (parseErr) {
+            // Skip malformed lines
+          }
+        }
+      }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to send message");
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
+      // Remove empty assistant message on error
+      setMessages((prev) => prev.filter((m) => m.id !== assistantId));
     } finally {
       setLoading(false);
     }

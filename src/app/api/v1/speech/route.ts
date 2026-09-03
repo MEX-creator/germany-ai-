@@ -62,9 +62,8 @@ export async function POST(req: NextRequest) {
       const existingMessages = await prisma.message.findMany({
         where: { conversationId: parseInt(String(conversationId)) },
         orderBy: { createdAt: "asc" },
-        take: 20, // last 20 messages for context window
+        take: 20,
       });
-
       for (const msg of existingMessages) {
         historyMessages.push({
           role: msg.role as "user" | "assistant",
@@ -73,91 +72,112 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Add the current user message
     historyMessages.push({ role: "user", content: prompt });
 
-    // Call NVIDIA NIM
+    // Stream the response from NVIDIA NIM
     const client = createNvidiaClient();
-    const completion = await client.chat.completions.create({
+    const stream = await client.chat.completions.create({
       model: CHAT_MODEL,
       messages: historyMessages,
       temperature: 0.7,
       max_tokens: 1024,
+      stream: true,
     });
 
-    const rawMessage = completion.choices[0]?.message?.content ?? "I'm sorry, I couldn't generate a response.";
+    let fullContent = "";
+    let convId = parseInt(String(conversationId)) || 0;
+    let newConversation: any = null;
+    let isNewConversation = !conversationId;
 
-    // Parse vocabulary markers
-    const { cleanText, vocab } = parseVocabMarkers(rawMessage);
-
-    // Save conversation to database
-    const result = await prisma.$transaction(async (tx: any) => {
-      let conversation;
-
-      if (!conversationId) {
-        const conversationCount = await tx.conversation.count();
-        conversation = await tx.conversation.create({
-          data: {
-            title: `Lektion${conversationCount + 1}`,
-          },
-        });
-      }
-
-      const convId = parseInt(String(conversationId)) || conversation!.id;
-
-      // Save user's message
-      await tx.message.create({
-        data: {
-          content: prompt,
-          role: "user",
-          conversationId: convId,
-        },
+    // If new conversation, create it now and send the ID immediately
+    if (isNewConversation) {
+      const conversationCount = await prisma.conversation.count();
+      newConversation = await prisma.conversation.create({
+        data: { title: `Lektion${conversationCount + 1}` },
       });
+      convId = newConversation.id;
+    }
 
-      // Save AI's response (with vocab markers stripped)
-      await tx.message.create({
-        data: {
-          content: cleanText,
-          role: "assistant",
-          conversationId: convId,
-        },
-      });
+    // Save user message immediately
+    await prisma.message.create({
+      data: { content: prompt, role: "user", conversationId: convId },
+    });
 
-      // Save extracted vocabulary items
-      for (const v of vocab) {
-        // Avoid duplicates — check if this german word already exists
-        const existing = await tx.vocabularyItem.findFirst({
-          where: { german: v.german },
-        });
-        if (!existing) {
-          await tx.vocabularyItem.create({
-            data: {
-              german: v.german,
-              english: v.english,
-              example: v.example ?? null,
-              sourceConversationId: convId,
-            },
+    // Create a streaming response
+    const encoder = new TextEncoder();
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Send header with conversation info
+          controller.enqueue(encoder.encode(JSON.stringify({
+            type: "header",
+            conversationId: convId,
+            conversation: newConversation,
+          }) + "\n"));
+
+          // Stream tokens
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content;
+            if (token) {
+              fullContent += token;
+              controller.enqueue(encoder.encode(JSON.stringify({
+                type: "token",
+                content: token,
+              }) + "\n"));
+            }
+          }
+
+          // Parse vocab markers from complete response
+          const { cleanText, vocab } = parseVocabMarkers(fullContent);
+
+          // Save assistant message and vocab to database
+          await prisma.message.create({
+            data: { content: cleanText, role: "assistant", conversationId: convId },
           });
+          for (const v of vocab) {
+            const existing = await prisma.vocabularyItem.findFirst({
+              where: { german: v.german },
+            });
+            if (!existing) {
+              await prisma.vocabularyItem.create({
+                data: {
+                  german: v.german,
+                  english: v.english,
+                  example: v.example ?? null,
+                  sourceConversationId: convId,
+                },
+              });
+            }
+          }
+
+          // Send done signal
+          controller.enqueue(encoder.encode(JSON.stringify({
+            type: "done",
+            message: cleanText,
+            conversationId: convId,
+            conversation: newConversation,
+          }) + "\n"));
+
+          controller.close();
+        } catch (err) {
+          console.error("Streaming error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({
+            type: "error",
+            error: err instanceof Error ? err.message : "Streaming failed",
+          }) + "\n"));
+          controller.close();
         }
-      }
-
-      // Return full conversation if it's new
-      if (!conversationId) {
-        return {
-          message: cleanText,
-          conversation: await tx.conversation.findUnique({
-            where: { id: conversation!.id },
-            include: {
-              messages: { orderBy: { createdAt: "asc" } },
-            },
-          }),
-        };
-      }
-
-      return { message: cleanText };
+      },
     });
 
-    return NextResponse.json(result, { status: 200 });
+    return new Response(readableStream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (error) {
     console.error("Chat error:", error);
     return NextResponse.json(
