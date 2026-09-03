@@ -53,28 +53,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
     }
 
-    // Build conversation history for context
+    // === PHASE 1: All DB writes in one transaction (fast, single connection) ===
+    let convId = parseInt(String(conversationId)) || 0;
+    let newConversation: any = null;
     let historyMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: SYSTEM_PROMPT },
     ];
 
-    if (conversationId) {
-      const existingMessages = await prisma.message.findMany({
-        where: { conversationId: parseInt(String(conversationId)) },
-        orderBy: { createdAt: "asc" },
-        take: 20,
-      });
-      for (const msg of existingMessages) {
-        historyMessages.push({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
+    const setupResult = await prisma.$transaction(async (tx: any) => {
+      // Get existing messages for context
+      if (conversationId) {
+        const existingMessages = await tx.message.findMany({
+          where: { conversationId: parseInt(String(conversationId)) },
+          orderBy: { createdAt: "asc" },
+          take: 10,
         });
+        for (const msg of existingMessages) {
+          historyMessages.push({
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          });
+        }
       }
-    }
 
-    historyMessages.push({ role: "user", content: prompt });
+      historyMessages.push({ role: "user", content: prompt });
 
-    // Stream the response from NVIDIA NIM
+      // Create conversation if new
+      let conversation = null;
+      if (!conversationId) {
+        const count = await tx.conversation.count();
+        conversation = await tx.conversation.create({
+          data: { title: `Lektion${count + 1}` },
+        });
+        convId = conversation.id;
+      } else {
+        convId = parseInt(String(conversationId));
+      }
+
+      // Save user message
+      await tx.message.create({
+        data: { content: prompt, role: "user", conversationId: convId },
+      });
+
+      return { convId, conversation };
+    });
+
+    newConversation = setupResult.conversation;
+    convId = setupResult.convId;
+
+    // === PHASE 2: Stream AI response (no DB connections held) ===
     const client = createNvidiaClient();
     const stream = await client.chat.completions.create({
       model: CHAT_MODEL,
@@ -85,25 +112,7 @@ export async function POST(req: NextRequest) {
     });
 
     let fullContent = "";
-    let convId = parseInt(String(conversationId)) || 0;
-    let newConversation: any = null;
-    let isNewConversation = !conversationId;
 
-    // If new conversation, create it now and send the ID immediately
-    if (isNewConversation) {
-      const conversationCount = await prisma.conversation.count();
-      newConversation = await prisma.conversation.create({
-        data: { title: `Lektion${conversationCount + 1}` },
-      });
-      convId = newConversation.id;
-    }
-
-    // Save user message immediately
-    await prisma.message.create({
-      data: { content: prompt, role: "user", conversationId: convId },
-    });
-
-    // Create a streaming response
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -115,7 +124,7 @@ export async function POST(req: NextRequest) {
             conversation: newConversation,
           }) + "\n"));
 
-          // Stream tokens
+          // Stream tokens (no DB connections here)
           for await (const chunk of stream) {
             const token = chunk.choices[0]?.delta?.content;
             if (token) {
@@ -127,28 +136,29 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Parse vocab markers from complete response
+          // === PHASE 3: Save results in one transaction ===
           const { cleanText, vocab } = parseVocabMarkers(fullContent);
 
-          // Save assistant message and vocab to database
-          await prisma.message.create({
-            data: { content: cleanText, role: "assistant", conversationId: convId },
-          });
-          for (const v of vocab) {
-            const existing = await prisma.vocabularyItem.findFirst({
-              where: { german: v.german },
+          await prisma.$transaction(async (tx: any) => {
+            await tx.message.create({
+              data: { content: cleanText, role: "assistant", conversationId: convId },
             });
-            if (!existing) {
-              await prisma.vocabularyItem.create({
-                data: {
-                  german: v.german,
-                  english: v.english,
-                  example: v.example ?? null,
-                  sourceConversationId: convId,
-                },
+            for (const v of vocab) {
+              const existing = await tx.vocabularyItem.findFirst({
+                where: { german: v.german },
               });
+              if (!existing) {
+                await tx.vocabularyItem.create({
+                  data: {
+                    german: v.german,
+                    english: v.english,
+                    example: v.example ?? null,
+                    sourceConversationId: convId,
+                  },
+                });
+              }
             }
-          }
+          });
 
           // Send done signal
           controller.enqueue(encoder.encode(JSON.stringify({

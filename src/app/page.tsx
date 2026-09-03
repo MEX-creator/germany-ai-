@@ -176,7 +176,9 @@ const HomePage: React.FC = () => {
   async function handleSubmit(e?: React.MouseEvent) {
     if (e) e.preventDefault();
     const prompt = request.trim();
-    if (!prompt || !selectedChat) return;
+    if (!prompt || !selectedChat || loading) return;
+    setLoading(true);
+    setRequest("");
 
     // Add user message immediately
     const userMsg: Message = {
@@ -186,8 +188,6 @@ const HomePage: React.FC = () => {
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
-    setRequest("");
-    setLoading(true);
 
     // Add placeholder for streaming AI response
     const assistantId = Date.now() + 1;
