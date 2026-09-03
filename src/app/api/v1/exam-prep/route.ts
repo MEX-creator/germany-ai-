@@ -66,14 +66,28 @@ export async function POST(req: NextRequest) {
     // Strip markdown code fences if present
     let jsonStr = raw;
     if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
     if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
     jsonStr = jsonStr.trim();
+
+    // Strip newlines inside JSON strings (AI sometimes adds them)
+    jsonStr = jsonStr.replace(/\n/g, " ");
 
     let questions;
     try {
       questions = JSON.parse(jsonStr);
     } catch {
-      return NextResponse.json({ error: "Failed to parse AI response", raw }, { status: 500 });
+      // Try to extract JSON object from the response
+      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          questions = JSON.parse(jsonMatch[0].replace(/\n/g, " "));
+        } catch {
+          return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
+        }
+      } else {
+        return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ questions }, { status: 200 });
